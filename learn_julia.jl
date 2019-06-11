@@ -28,7 +28,7 @@ end
 
 
 # OK lets test it out.
-# Start with the stock at carrying capacity and an example dispersion matrix.
+# Start with the stock at 1/2 carrying capacity and an example dispersion matrix.
 # Then harvest 1/2 of the stock in one patch every period for 100 periods
 
 # Start the stock out at 50% the of carrying capacity.
@@ -44,7 +44,7 @@ test_dispersal = (ones(npatches,npatches)/npatches + I)/2
 # Now I will loop through 100 time periods, harvesting half of the stock
 # in patch 1 in every period.
 
-# For loops turn out to be a bit different in JUlia as well, each time around
+# For loops turn out to be a bit different in Julia as well, each time around
 # it forgets the variables, unless they are defined as globals
 
 println("Test 1: Loop 100 Times")
@@ -68,9 +68,10 @@ stock = (1/2)*carrying_capacity*ones(npatches)
 
 diff = 10 # something greater than 0
 
+println("\n")
 println("Test 2: While")
 
-while diff > 1e-8
+while diff > 1e-4
 
     # Harvest 50% of the stock in patch 1
     harvest = zeros(npatches)
