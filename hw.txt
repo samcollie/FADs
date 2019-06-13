@@ -1,2 +1,3 @@
 Hello... omg Git is confusing
-HIII I know it makes me want to run back into my burrow and hibernate for a few more months....
+
+See If I can figure out how to pull without re-cloning, if that makes sense.
