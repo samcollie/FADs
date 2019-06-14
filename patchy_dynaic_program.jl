@@ -1,6 +1,5 @@
-# Goal: Create a dynamic program maximizing profits in just 1 patch.
-# This will help us learn Julia and illustrate value function iteration for you
-# It gets a tad more complicated with multiple patches so lets start off easy.
+# Goal: Find the optimal number and placement of FADs in a simple fishing ground
+#       This is the "simplest possible" model.
 
 # Notes: Make sure you only read the newest version of the Julia documentation...
 # https://docs.julialang.org/en/v1/
@@ -12,35 +11,6 @@ using LinearAlgebra
 using Optim
 using Interpolations
 using IterTools
-
-## Initialize global paramaters
-#  (I'm not sure if it matters if I put 'global' before their name)
-
-
-# Parameters for the 'patches'
-carrying_capacity = 100
-r = 0.8     # A parameter for the Gordon-Schaefer logistic growth function
-dim = 2     # The number of patches on one edge of the [square] fishing ground
-npatches = dim^2    # Total number of patches
-
-# Parameters for the value function iteration
-ngrid = 2  # Grid size for the state-space (the stock in a given patch)
-stock_grid = range(0, carrying_capacity, length=ngrid)
-discount_factor = 0.9
-convcrit = 1e-4  # Degree of precision to achieve convergence (larger number = faster convergence)
-
-# Ok here comes the tricky part.
-# The state space = every possible combination of the stock_grid in every patch
-# In this example, there are 4 patches, and 2 possible stock sizes (0.0 or 100.0)
-# So there are 16 elements in the state space.
-# In general the state space has length = ngrid^npatches
-# This is where 'the curse of dimensionality' comes in... the state spaceconv
-# quickly becomes very large.
-# (BTW it took foverver to figure out the next line of code... don't worry about it)
-# I think it will make more sense to just look at the result
-state_space = vec(collect(product([stock_grid for i=1:npatches]...)))
-println("\n The State Space")
-println(state_space)
 
 
 ## Define Functions
@@ -85,6 +55,38 @@ function objective(harvest, stock, dispersal, patch_value)
     # Put it all together!
     current_reward + discount_factor*future_reward
 end
+
+## Initialize global paramaters
+#  (I'm not sure if it matters if I put 'global' before their names)
+
+# Parameters for the 'patches'
+carrying_capacity = 100
+r = 0.8     # A parameter for the Gordon-Schaefer logistic growth function
+dim = 2     # The number of patches on one edge of the [square] fishing ground
+npatches = dim^2    # Total number of patches
+
+# Parameters for the value function iteration
+ngrid = 2  # Grid size for the state-space (the stock in a given patch)
+stock_grid = range(0, carrying_capacity, length=ngrid)
+discount_factor = 0.9
+convcrit = 1e-4  # Degree of precision to achieve convergence (larger number = faster convergence)
+
+
+# Ok here comes the tricky part.
+# The state space = every possible combination of the stock_grid in every patch
+# In this example, there are 4 patches, and 2 possible stock sizes (0.0 or 100.0)
+# So there are 16 elements in the state space.
+# In general the state space has length = ngrid^npatches
+# This is where 'the curse of dimensionality' comes in... the state spaceconv
+# quickly becomes very large.
+# (BTW it took foverver to figure out the next line of code... don't worry about it)
+# I think it will make more sense to just look at the result
+state_space = vec(collect(product([stock_grid for i=1:npatches]...)))
+println("\n The State Space")
+println(state_space)
+
+
+
 
 # Initialize the continuation value at zero
 value = zeros(npatches, ngrid)
