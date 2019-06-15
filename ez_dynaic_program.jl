@@ -11,48 +11,45 @@
 using LinearAlgebra
 using Optim
 using Interpolations
-using IterTools
+using IterTools # You will get a warning that IterTools is depreciated. The internet says it isnt.
 
 ## Initialize global paramaters
 #  (I'm not sure if it matters if I put 'global' before their name)
 
 
-# Parameters for the 'patches'
+# Parameters for the Gordon-Schaefer logistic growth function
 carrying_capacity = 100
-r = 0.8     # A parameter for the Gordon-Schaefer logistic growth function
-dim = 2     # The number of patches on one edge of the [square] fishing ground
-npatches = dim^2    # Total number of patches
+r = 0.8
 
 # Parameters for the value function iteration
-ngrid = 2  # Grid size for the state-space (the stock in a given patch)
-stock_grid = range(0, carrying_capacity, length=ngrid)
+ngrid = 10  # Grid size for the state-space (the stock in a given patch)
 discount_factor = 0.9
 convcrit = 1e-4  # Degree of precision to achieve convergence (larger number = faster convergence)
 
-# Ok here comes the tricky part.
-# The state space = every possible combination of the stock_grid in every patch
-# In this example, there are 4 patches, and 2 possible stock sizes (0.0 or 100.0)
-# So there are 16 elements in the state space.
-# In general the state space has length = ngrid^npatches
-# This is where 'the curse of dimensionality' comes in... the state spaceconv
-# quickly becomes very large.
-# (BTW it took foverver to figure out the next line of code... don't worry about it)
-# I think it will make more sense to just look at the result
-state_space = vec(collect(product([stock_grid for i=1:npatches]...)))
-println("\n The State Space")
-println(state_space)
+# Define the State-Space
+stock_grid = range(0, carrying_capacity, length=ngrid)
 
 
 ## Define Functions
 
 # Gordon-Schaefer Stock Growth Function
-function stock_growth(stock, harvest)
-    stock - harvest + r * stock .* (1 .- stock/carrying_capacity)
+# Stock in next period = Current Stock minus Harvest plus regrowth
+function stock_next(harvest, stock)
+    # Update the Stock
+    new_stock = stock - harvest + r * stock .* (1 .- stock/carrying_capacity)
+    # Make sure the new stock is between 0 and 100
+    if new_stock > 100.0
+        new_stock = 100.0
+    elseif new_stock < 0.0
+        new_stock = 0.0
+    end
+    new_stock
 end
 
-# Next period stock
-function stock_next(harvest, stock, dispersal)
-    dispersal * stock_growth(stock,harvest)
+# Profit in this time period given harvest h
+function profit(harvest)
+    # Keep this simple for now, Profit = harvest
+    harvest
 end
 
 # Find the maximum absolute difference of two vectors a & b
@@ -65,58 +62,90 @@ function check_convergence(a,b)
     sup_norm(a,b) < convcrit
 end
 
-# Profit in this time period given harvest h
-function profit(harvest)
-    # Keep this simple for now
-    # Profit = sum of harvest in all patches
-    sum(harvest )
-end
 
 # Objective = The thing to maximize.
 # Equal to this period's profit from harvest plus the discounted future reward
-function objective(harvest, stock, dispersal, patch_value)
+function objective(harvest, stock, valu)
     # The profit in this period
     current_reward = profit(harvest)
     # The stock in the next period
-    future_stock = stock_next(harvest, stock, dispersal)
+    future_stock = stock_next(harvest, stock)
     # The future reward (continuation value)
-    interp = LinearInterpolation(stock_grid, patch_value)
+    # See note below on the interpolation step
+    interp = LinearInterpolation(stock_grid, valu)
     future_reward = interp(future_stock)
     # Put it all together!
-    current_reward + discount_factor*future_reward
+    total_reward = current_reward + discount_factor*future_reward
+    # Return the negative reward, since by defualt optimization methods minimize
+    - total_reward
 end
 
+# Note: The continuation value ('valu') is equal to the maximum discounted profit
+# associated with a given value of the state variable. For example, say there are
+# 50 fish (stock=50), then the value function tells you how much profit you would
+# make in the future starting with 50 fish, assuming you make all future harvest
+# decisions optimally.
+
+# Note on interpolation:
+# The objective function above includes an interpolation step for the following
+# reason. The matrix 'valu' defines the continuation value for each discrete step
+# of the state variable (in this case stock_grid).
+# So if stock grid = [0,10, ... , 90, 100], then we know the continuation value
+# associated with each of those stock levels. But say we havest a bit and the next
+# period stock is 55, then we need to know the continuation value at stock=55.
+# That's why we interpolate, to get the half-way point between valu @ stock = 50
+# & valu @ stock = 60.
+
+## Ok now we have everything in place to do the value function iteration.
+#  Basically, you set the valu matrix to something arbitrary. Then iteratively
+#  update the value function, at each iteration choosing the optimal harvest for
+#  every stock value in stock grid. Using that optimal harvest, you then update
+#  the continuation value. Repeat this procedure until the value function does
+#  not change anymore. (This is gaurenteed to work by the contraction mapping theorem).
+
 # Initialize the continuation value at zero
-value = zeros(npatches, ngrid)
+valu = zeros(ngrid)
 
-# An example dispersal matrix
-dispersal_ex = (ones(npatches,npatches)/npatches + I)/2
+# Variables used to control the loop
+global counter = 0  # A safety valve so this thing doesnt go on forever
+global converged = false
 
-harvest_ex = fill(13, npatches)
-stock_ex = fill(69, npatches)
+while (converged == false) & (counter < 10000)
 
-println(stock_next(harvest_ex, stock_ex, dispersal_ex))
+    # Create empty arrays to store results
+    optimal_harvest = zeros(ngrid)
+    valu_next = zeros(ngrid)
 
+    # Loop through the state space & find the optimal harvest at
+    # each level of the stock.
+    for stock_idx = 1:ngrid
+        # Grab the stock
+        stock = stock_grid[stock_idx]
+        # Minimize the objecive function
+        # OK a little to unpack here....
+        # The first argument of Optim is "h -> objective(h, stock, valu)"
+        # This is called an anonymous function. Its saying, ok the funtion 'objective'
+        # takes three arguments, but here we are just changing h for harvest,
+        # while leaving stock & valu fixed. The Optim knows its trying to change h
+        # to find the minimum.
+        # The second 2 arguments, 0 & 100 are the bounds to search between.
+        result = optimize(h -> objective(h, stock, valu), 0.0, stock)
+        # Ok hopefully that worked, now store the results...
+        optimal_harvest[stock_idx] = result.minimizer
+        valu_next[stock_idx] = -result.minimum
+    end
 
-# stock = (1/2)*carrying_capacity*ones(npatches)
-#
-# converged = false
-#
-# while converged == false
-#
-#     # Harvest 50% of the stock in patch 1
-#     harvest = zeros(npatches)
-#     harvest[1] = test_stock[1]/2
-#
-#     # Get the stock in the next period when harvest is applied
-#     new_stock = stock_next(harvest, stock, test_dispersal)
-#     println(new_stock)
-#
-#     # The SUP-Norm.
-#     # The largest absolute difference between the old & new stock
-#     global converged = check_convergence(stock, new_stock)
-#
-#     # After checking for convergence, update the stock.
-#     global stock = new_stock
-#
-# end
+    # Ok we have updated the value function for one iteration!
+    # println("Iteration:")
+    println(counter)
+    global counter += 1  # Add 1 to the counter
+
+    # Check to see if the value function has converged...
+    global converged = check_convergence(valu,valu_next)
+
+    # Update the continuation value
+    global valu = valu_next
+    # Store the harvest (so we can tell what happened after the fact)
+    global harvest = optimal_harvest
+
+end
