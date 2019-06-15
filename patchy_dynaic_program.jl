@@ -4,13 +4,13 @@
 # Notes: Make sure you only read the newest version of the Julia documentation...
 # https://docs.julialang.org/en/v1/
 # A lot of the stuff online pertains to beta versions (prior to 1.0) that
-# doesn't apply anymore. Just search the docs in the link above instead.
+# doen't apply anymore. Just search the docs in the link above instead.
 
 # Step 0: Load Packages
 using LinearAlgebra
 using Optim
 using Interpolations
-using IterTools
+using IterTools 
 
 
 ## Define Functions
