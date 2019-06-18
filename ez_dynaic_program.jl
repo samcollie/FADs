@@ -8,10 +8,10 @@
 # doesn't apply anymore. Just search the docs in the link above instead.
 
 # Step 0: Load Packages
-using LinearAlgebra
+# using LinearAlgebra
 using Optim
 using Interpolations
-using IterTools # You will get a warning that IterTools is depreciated. The internet says it isnt.
+# using IterTools # You will get a warning that IterTools is depreciated. The internet says it isnt.
 
 ## Initialize global paramaters
 #  (I'm not sure if it matters if I put 'global' before their name)
@@ -126,12 +126,14 @@ while (converged == false) & (counter < 10000)
         # The first argument of Optim is "h -> objective(h, stock, valu)"
         # This is called an anonymous function. Its saying, ok the funtion 'objective'
         # takes three arguments, but here we are just changing h for harvest,
-        # while leaving stock & valu fixed. The Optim knows its trying to change h
+        # while leaving stock & valu fixed. Then Optim knows its trying to change h
         # to find the minimum.
-        # The second 2 arguments, 0 & 100 are the bounds to search between.
+        # The second 2 arguments, 0 & stock are the bounds to search between.
+        # (whcih forces harvest to be less than the current stock)
         result = optimize(h -> objective(h, stock, valu), 0.0, stock)
         # Ok hopefully that worked, now store the results...
         optimal_harvest[stock_idx] = result.minimizer
+        # Store the negative of the function minimum to make it positive again
         valu_next[stock_idx] = -result.minimum
     end
 
@@ -149,3 +151,8 @@ while (converged == false) & (counter < 10000)
     global harvest = optimal_harvest
 
 end
+
+println("The optimal harvest rule is:")
+println(harvest)
+# Remember these correspond to the levels of the stock grid...
+# So if the current stock is 100, the optimal thing to do is harvest 55.55
