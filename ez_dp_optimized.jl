@@ -7,7 +7,7 @@ const carrying_capacity = 100
 const r = 0.8
 const discount_factor = 0.9
 const convcrit = 1e-6
-const ngrid = 100
+const ngrid = 1000
 const stock_grid = range(0.0, carrying_capacity, length = ngrid)
 
 # Define Functions
@@ -44,8 +44,7 @@ end
 function update_valu(valu)
     valu_next = fill(0.0, ngrid)
     valu_interp = LinearInterpolation(stock_grid, valu)
-    for idx in 1:ngrid
-        stock = stock_grid[idx]
+    for (idx, stock) in enumerate(stock_grid)
         valu_next[idx] = optimal_harvest(stock, valu_interp)
     end
     valu_next
@@ -53,6 +52,7 @@ end
 
 function valu_iteration()
     valu = zeros(ngrid)
+    valu_next = zeros(ngrid)
     counter = 0
     converged = false
     while (converged == false) & (counter < 10000)
@@ -64,10 +64,10 @@ function valu_iteration()
     counter
 end
 
-# Run once to compile
-valu_iteration()
 # Time it & check allocations
 function test()
+    # Run once to compile
+    c = valu_iteration()
     @time valu_iteration()
 end
 println(test())
