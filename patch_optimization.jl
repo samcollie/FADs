@@ -16,6 +16,8 @@ const stock_grid = range(0.0, carrying_capacity, length = ngrid)
 const npatches = 2
 const convcrit = 1e-6
 
+dispersal = (ones(npatches,npatches)/npatches + I)/2
+
 # Need vector with all combinations of stock levels across patches:
 state_space = vec(collect(product([stock_grid for i=1:npatches]...)))
 println("\n The State Space")
@@ -69,6 +71,7 @@ function update_valu(valu)
     valu_next
 end
 
+# Think I should be adding state_space into this part...?
 function valu_iteration()
     valu = zeros(ngrid)
     valu_next = zeros(ngrid)
@@ -82,3 +85,11 @@ function valu_iteration()
     end
     counter
 end
+
+# Time it & check allocations
+function test()
+    # Run once to compile
+    c = valu_iteration()
+    @time valu_iteration()
+end
+println(test())
