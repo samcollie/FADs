@@ -61,9 +61,11 @@ end
 
 function optimal_harvest(stock, value_interp)
     objctv = h -> - bellman(h, stock, value_interp)
+    # So here, [0, 0] is an initial guess for the optimal harvest.
+    # This also tells optimize its a 2d problem
     result = optimize(objctv, [0.0, 0.0])
     #result = optimize(objctv, [0.0, 0.0], stock, [0.0, 0.0], Fminbox())
-
+    # Above is a bounded optimazation method I ended up not using
     -result.minimum
 end
 
